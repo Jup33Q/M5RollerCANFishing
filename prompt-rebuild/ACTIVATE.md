@@ -1,141 +1,180 @@
-# RollerCAN 钓鱼模拟器 · 一键从头重建激活提示词
+# RollerCAN Fishing Simulator — One-Shot Rebuild Activation Prompt (EN)
 
-> 用法：新建一个空目录作为工作区，把 `prompt-rebuild/` 整个拷进去，打开 Kimi Code，
-> 把本文件**全文**粘贴为第一条消息。Agent 会按下面的规格从零重建整个项目。
-> 本目录已带齐：鱼图素材（assets/fish/）、必要 skills（skills/）、施工文档（docs/）。
+> How to use: create an empty directory as the workspace, copy the whole
+> `prompt-rebuild/` folder into it, open Kimi Code, and paste the **entire content
+> of this file** as the first message. The agent will rebuild the complete project
+> from scratch per the spec below. This kit already ships everything that cannot be
+> regenerated from a prompt: fish art (`assets/fish/`), the required skills
+> (`skills/`), and all build records (`docs/`).
+>
+> 中文版本：[ACTIVATE_zh.md](ACTIVATE_zh.md)
 
 ---
 
-## 任务总述
+## Mission
 
-从零重建「RollerCAN 力反馈钓鱼模拟器」完整项目（仅 macOS）：
+Rebuild the complete "RollerCAN haptic fishing simulator" project from scratch
+(**macOS only**):
 
-- **硬件**：M5Stack CoreS3（BMI270 IMU）+ M5Stack RollerCAN（I2C 力反馈旋钮电机，
-  地址 0x64，Port.A SDA=2/SCL=1，400kHz）。RollerCAN 旋钮 = 鱼线轮摇柄，
-  CoreS3 = 鱼竿姿态。鱼线张力 → 电机反向扭矩（手感即玩法）。
-- **组成**：① 钓鱼专用固件（PlatformIO）② 标准力反馈固件 ③ RollerFlasher
-  macOS 烧录器（SwiftPM/SwiftUI）④ Unity 钓鱼模拟器（Built-in 管线）
-  ⑤ Blender 参数化渔轮模型。
-- 工作区布局（就地创建）：
+- **Hardware**: M5Stack CoreS3 (BMI270 IMU) + M5Stack RollerCAN (I2C force-feedback
+  knob motor, address 0x64, Port.A SDA=2/SCL=1, 400 kHz). The RollerCAN knob is the
+  fishing-reel handle; the CoreS3 is the rod attitude. Line tension becomes
+  counter-torque on the motor — the gameplay is in your hand.
+- **Components**: ① dedicated fishing firmware (PlatformIO) ② standard haptic
+  firmware ③ RollerFlasher macOS uploader (SwiftPM / SwiftUI) ④ Unity fishing
+  simulator (Built-in render pipeline) ⑤ Blender parametric reel model.
+- Workspace layout (create in place):
 
 ```
-<工作区>/
-├── firmware-fishing/      # 钓鱼专用固件（干净版）
-├── firmware/              # 标准力反馈固件（本地 4 模式）
-├── RollerFlasher/         # macOS 烧录器 SwiftPM 工程
-├── RollerHapticUnity/     # Unity 工程
-├── blender/roller_model.py# 渔轮参数化建模脚本
-├── tools/png_to_rgb565.py # 鱼图 → RGB565 C 数组
-├── assets/fish/           # 已有：fish_0..6.png（去背 RGBA 像素鱼）
-└── docs/                  # 已有：5 份施工计划（先通读，含全部踩坑记录）
+<workspace>/
+├── firmware-fishing/      # dedicated fishing firmware (clean build)
+├── firmware/              # standard haptic firmware (4 local modes)
+├── RollerFlasher/         # macOS uploader, SwiftPM package
+├── RollerHapticUnity/     # Unity project
+├── blender/roller_model.py# parametric reel-model script
+├── tools/png_to_rgb565.py # fish PNG -> RGB565 C array
+├── assets/fish/           # ALREADY PRESENT: fish_0..6.png (background-removed RGBA)
+└── docs/                  # ALREADY PRESENT: 5 build plans (read first — all pitfalls)
 ```
 
-## 先读文档
+## Read the docs first
 
-`docs/` 下 5 份计划是前世今生全记录，施工前先通读：
-fishing-simulator-plan.md（主线协议/验收清单）、unity-serial-link-plan.md（链路）、
-fish-sprites-gamification-plan.md（像素鱼 HUD）、water-shader-and-ux-plan.md
-（水面 shader + 模型施工记录）、imu-axis-mapping-fix-plan.md（姿态估计根治 +
-轴映射校准 + prefab 化 + 甩竿检测，共十轮施工记录）。
+The 5 plans under `docs/` are the full project history. Read them before building:
+fishing-simulator-plan.md (main protocol / acceptance checklist),
+unity-serial-link-plan.md (link layer), fish-sprites-gamification-plan.md
+(pixel-fish HUD), water-shader-and-ux-plan.md (water shader + model build log),
+imu-axis-mapping-fix-plan.md (attitude-estimation rewrite + axis-mapping
+calibration + prefab-ization + whip detection — ten rounds of build records).
 
-## 通信协议（一套 ASCII 行，串口 115200 与 UDP :9000 双通道同式）
+## Protocol (one ASCII-line protocol over both serial 115200 and UDP :9000)
 
-- Unity → CoreS3：`TENSION,<0..1000>`（张力千分比 → 电流 = ratio × EXT_MAX_CURRENT
-  × EXT_DIR）、`SETCUR,<-60000..60000>`、`FISH,<0..6>`（切鱼精灵）、`MODE,EXT` /
-  `MODE,LOCAL`、`LEVEL`（调平）、`PING`（心跳，固件回 PONG，不武装看门狗）。
-- CoreS3 → Unity：串口 `HAPTIC,EXT,<pos_0.01deg>,<cur>,<roll>,<pitch>,<yaw>` ~200Hz；
-  OSC/UDP ~100Hz → :8000：`/rollercan/imu fff`（欧拉角 legacy）、`/rollercan/quat ffff`
-  （x,y,z,w 调平后，**主用**）、`/rollercan/motor ff`（角度/电流）、`/rollercan/acc ff`
-  （线性加速度幅值：瞬时 + 15Hz 低通，甩竿检测用）。
-- CoreS3 IP 由 Unity 从 OSC 包来源自动发现，免配置。
-- OSC 编码注意：字符串必须先 \0 终止再 4 字节对齐补齐（否则接收方解析全丢）。
+- Unity → CoreS3: `TENSION,<0..1000>` (tension per-mille -> current = ratio ×
+  EXT_MAX_CURRENT × EXT_DIR), `SETCUR,<-60000..60000>`, `FISH,<0..6>` (fish sprite),
+  `MODE,EXT` / `MODE,LOCAL`, `LEVEL` (re-zero attitude), `PING` (heartbeat; firmware
+  replies PONG; does NOT arm the watchdog).
+- CoreS3 → Unity: serial `HAPTIC,EXT,<pos_0.01deg>,<cur>,<roll>,<pitch>,<yaw>`
+  ~200 Hz; OSC/UDP ~100 Hz → :8000: `/rollercan/imu fff` (euler, legacy),
+  `/rollercan/quat ffff` (x,y,z,w, leveled — **primary**), `/rollercan/motor ff`
+  (angle/current), `/rollercan/acc ff` (linear-acceleration magnitude: instantaneous
+  + 15 Hz low-pass, for whip-cast detection).
+- The CoreS3 IP is auto-discovered by Unity from the source address of incoming OSC
+  packets — zero configuration.
+- OSC encoding pitfall: strings must be NUL-terminated FIRST and then padded to
+  4-byte alignment (otherwise the receiver fails to parse every packet).
 
-## ① 钓鱼固件 firmware-fishing（PlatformIO，board m5stack-cores3）
+## ① Fishing firmware `firmware-fishing/` (PlatformIO, board m5stack-cores3)
 
-- lib_deps：M5Unified@^0.2.5、M5GFX@^0.2.7、github.com/m5stack/M5Unit-Roller.git
-- 上电即钓鱼 HUD（canvas 离屏渲染消频闪）+ 电流模式待命；**无本地模式、
-  无触摸切换；BtnA = 调平**（甩竿误触无副作用）。
-- 姿态估计：陀螺仪**四元数积分 + Mahony 加速度 tilt 校正**（最短弧、无奇点无回绕；
-  估计"上"向量取 R(q) 第三行，Madgwick 原文四元数约定相反勿照搬）；静止近水平
-  3s 自动调平；LEVEL 存四元数零点，输出 = lv⁻¹ ⊗ q。
-- 线性加速度：体轴加速度经调平姿态旋到世界系去重力 → 幅值 raw + 15Hz 低通。
-- 看门狗：200ms 无实质命令 → `releaseTorque()`（电流归零、解除武装），
-  界面永远留钓鱼 HUD。所有电流过 clampCur(±CURRENT_MAX=60000)。
-- 手感参数（勿动）：EXT_MAX_CURRENT=40000、**EXT_DIR=-1**（鱼拽与收线反向）、
-  KD_DAMPING=1.5、velEst 位置差分（readback 寄存器延迟助振，勿回退）。
-- 钓鱼 HUD：深靛渐变底 + "FISHING!" 标题 + 96×96 像素鱼精灵（透明键 0xF81F，
-  `canvas.pushImage(x,y,96,96,FISH_SPRITES[id],0xF81F)`）+ 大张力% + 全宽
-  绿→红张力条 + ≥0.95 红框闪烁 + WAITING UNITY / UNITY LINKED + IMU 三轴 [LVL]。
-- 鱼精灵表（fish_sprites.h 由 tools/png_to_rgb565.py 生成，7×96×96 RGB565）：
-  0 鲫鱼 / 1 锦鲤 / 2 鲈鱼 / 3 鲶鱼 / 4 小虾 / 5 小螃蟹 / 6 萨卡班甲鱼。
-  M5GFX `pushImage` 按 host order 读 uint16（ESP32 小端原生），不要转 big-endian；
-  渐变用 `fillGradientRect(..., m5gfx::VLINEAR/HLINEAR)`（没有 fillGradientV/H）。
-- WiFi 配置：`#if __has_include("wifi_config.h")` 引入，占位默认值
-  YOUR_WIFI_SSID/YOUR_WIFI_PASS/192.168.1.100；RollerFlasher 构建前自动生成覆盖。
+- lib_deps: `m5stack/M5Unified@^0.2.5`, `m5stack/M5GFX@^0.2.7`,
+  `https://github.com/m5stack/M5Unit-Roller.git`
+- Boots straight into the fishing HUD (offscreen-canvas rendering, no flicker) with
+  the motor in current mode on standby. **No local modes, no touch-mode switching;
+  BtnA = LEVEL** (a firm whip grip cannot knock it out of the HUD).
+- Attitude estimation: gyro **quaternion integration + Mahony accelerometer tilt
+  correction** (shortest arc, no singularities, no wrap-around; the estimated "up"
+  vector is the THIRD ROW of R(q) — Madgwick's paper uses the opposite quaternion
+  convention, do not copy it blindly). Auto-level after 3 s lying still near
+  horizontal; LEVEL stores a quaternion zero; output = lv⁻¹ ⊗ q.
+- Linear acceleration: rotate body-frame accel into the leveled world frame, remove
+  gravity, take magnitude → instantaneous + 15 Hz low-pass.
+- Watchdog: 200 ms without a substantive command → `releaseTorque()` (current zero,
+  disarm); the UI always stays on the fishing HUD. All current commands pass through
+  clampCur(±CURRENT_MAX=60000).
+- Feel parameters (do not change): EXT_MAX_CURRENT=40000, **EXT_DIR=-1** (fish drag
+  opposes the reeling direction), KD_DAMPING=1.5, velocity estimated by position
+  differencing (the speed readback register lags and excites oscillation — never
+  revert to it).
+- Fishing HUD: deep-indigo gradient + "FISHING!" title + 96×96 pixel-fish sprite
+  (transparent key 0xF81F, `canvas.pushImage(x,y,96,96,FISH_SPRITES[id],0xF81F)`) +
+  large tension % + full-width green→red tension bar + red flashing frame ≥0.95 +
+  WAITING UNITY / UNITY LINKED + IMU axes with [LVL] mark.
+- Fish sprite table (fish_sprites.h generated by tools/png_to_rgb565.py,
+  7×96×96 RGB565): 0 crucian / 1 koi / 2 bass / 3 catfish / 4 shrimp / 5 crab /
+  6 sacabambaspis.
+  M5GFX `pushImage` reads uint16 in host order (ESP32 is little-endian native) — do
+  NOT byte-swap; gradients use `fillGradientRect(..., m5gfx::VLINEAR/HLINEAR)`
+  (there is no fillGradientV/H).
+- WiFi config: `#if __has_include("wifi_config.h")` with placeholder defaults
+  YOUR_WIFI_SSID / YOUR_WIFI_PASS / 192.168.1.100; RollerFlasher generates the real
+  header before every build.
 
-## ② 标准固件 firmware
+## ② Standard firmware `firmware/`
 
-同一 codebase 多本地 4 模式（DETENTS 两级棘轮 KP_MINOR=35/KP_MAJOR=40/
-TICK_MINOR=500/TICK_MAJOR=1000/CAP_MAJOR=250、SPRING KP=15/KD_SPRING=4.0、
-ENDSTOP 墙 ±18000、FREE），触摸按钮区 + BtnA 循环切模式，EXT 仅命令进出，
-看门狗超时回 LOCAL DETENTS。姿态/OSC/命令协议与钓鱼固件全同。
+Same codebase plus 4 local modes (DETENTS two-tier ratchet KP_MINOR=35/KP_MAJOR=40/
+TICK_MINOR=500/TICK_MAJOR=1000/CAP_MAJOR=250, SPRING KP=15/KD_SPRING=4.0, ENDSTOP
+walls ±18000, FREE), touch button bar + BtnA mode cycling, EXT entered/exited only
+via commands, watchdog timeout returns to LOCAL DETENTS. Attitude / OSC / command
+protocol identical to the fishing firmware.
 
-## ③ RollerFlasher（macOS SwiftPM executable，swift build -c release）
+## ③ RollerFlasher (macOS SwiftPM executable, `swift build -c release`)
 
-- 两页签：串口监视（HAPTIC 解析 + 角度曲线 + 手动命令框）/ 固件烧录
-  （变体选择、串口选择、WiFi 配置、构建/构建并烧录/烧录已编译 bin）。
-- 变体 = 独立工程：fishing → firmware-fishing、standard → firmware；
-  bundle Resources 各带一份，首次运行播种到 `~/Library/Application Support/
-  RollerFlasher/<工程名>` 工作副本再构建；构建前自动写 wifi_config.h。
-- pio/esptool 查找路径：/opt/homebrew/bin、~/.platformio/penv/bin 等；
-  烧录前自动断开串口监视防端口争抢。
-- 打包 .app：Contents/MacOS 放 release 二进制 + Resources 放两个固件工程，
-  `codesign --force --deep --sign -` 签名（先 `xattr -cr` 清扩展属性）。
+- Two tabs: serial monitor (HAPTIC parsing + angle chart + manual command box) /
+  firmware flashing (variant picker, port picker, WiFi config, build / build+upload /
+  flash existing .bin).
+- Variant = separate project: fishing → `firmware-fishing`, standard → `firmware`.
+  The .app bundle carries one copy of each under Resources; on first run each is
+  seeded to a writable working copy at
+  `~/Library/Application Support/RollerFlasher/<project>`; wifi_config.h is written
+  before every build.
+- pio/esptool lookup paths: /opt/homebrew/bin, ~/.platformio/penv/bin, etc.;
+  disconnect the serial monitor automatically before flashing to avoid port
+  contention.
+- Packaging the .app: Contents/MacOS = release binary, Contents/Resources = both
+  firmware projects; sign with `codesign --force --deep --sign -`
+  (run `xattr -cr` first to strip extended attributes).
 
-## ④ Unity 工程 RollerHapticUnity（Built-in 管线，勿引 URP/ShaderGraph）
+## ④ Unity project `RollerHapticUnity/` (Built-in RP — do NOT add URP/ShaderGraph)
 
-- 场景 Fishing.unity：水面（WaterSurface.shader：Surface + GrabPass 折射扭曲 +
-  正弦解析导数法线 + fbm 细节 _Detail 门控 + 菲涅尔 + 闪鳞高光；WaterQuality.cs
-  编辑模式降质）、RollerHapticSync（OSC 链路）、FishingSim（玩法 + OnGUI UI）、
-  IMU_Rig（prefab：渔轮模型 + RodTip）、固定相机 (0,1.6,-2.4) 俯角 30°。
-- RollerHapticSync.cs：UDP :8000 收 OSC（自包含极简解码器，大端 float）；
-  quat 通道优先，轴映射 `(x,y,z)→(x,-y,-z)`（实机校准，真旋转映射）；
-  Slerp 平滑；欧拉路径兜底含毛刺 reject+resync；motorRoot 失效按名递归找回
-  "RollerCAN_Rotor"、coreS3Root 失效 GameObject.Find("IMU_Rig")；motorAxis=+Z、
-  invertMotorAngle=1；UDP :9000 发命令，PING 0.5s 心跳；IMU 录制 CSV 含
-  quat/accRaw/accLp 列。
-- FishingSim.cs：状态机 IDLE→CAST→WAIT→BITE→FIGHT→LANDED/ESCAPED/LINE_BROKEN；
-  甩竿检测（dbgAccRaw ≥ whipThreshold 5 m/s²，冷却 1.5s，IDLE 与终局都可触发，
-  终局甩竿直接抛下一竿）；7 鱼种表（basePull 手感 + 基色 HSV 抖动）；张力 =
-  鱼拉力×(1+挣扎 sin+噪声)+冲刺脉冲，收线加成；红区 0.3s 断线；耐力消耗/力竭衰减；
-  鱼精灵 = Resources/fish/fish_N.png billboard quad（根级跟随，勿挂非均匀缩放
-  父级下）；LANDED 抛物线上岸动画 + easeOutBack 横幅 + 渔获计数面板；
-  左下姿态摇杆（IMU yaw/pitch 实时镜像）；收线进度条。
-- IMU_Rig.prefab：嵌套 FBX 模型实例 + RodTip；场景跨嵌套引用用 stripped
-  Transform 链。**FBX 勿含 ARMATURE**（skinned-mesh 重复渲染坑），扁平节点保
-  fileID 稳定。
+- Scene Fishing.unity: water surface (WaterSurface.shader: Surface + GrabPass
+  refraction distortion + analytic-derivative sine normals + fbm detail gated by
+  `_Detail` + fresnel + glitter specular; WaterQuality.cs lowers quality in edit
+  mode), RollerHapticSync (OSC link), FishingSim (gameplay + OnGUI UI), IMU_Rig
+  (prefab: reel model + RodTip), fixed camera at (0,1.6,-2.4) pitched down 30°.
+- RollerHapticSync.cs: UDP :8000 OSC receive (self-contained minimal decoder,
+  big-endian floats); quat channel takes priority, axis mapping
+  `(x,y,z)→(x,-y,-z)` (calibrated on the real device — a true rotation map);
+  Slerp smoothing; euler fallback with glitch reject+resync; motorRoot refound by
+  name ("RollerCAN_Rotor") when the reference breaks, coreS3Root refound via
+  GameObject.Find("IMU_Rig"); motorAxis=+Z, invertMotorAngle=1; commands over UDP
+  :9000, PING heartbeat every 0.5 s; IMU CSV recording with quat/accRaw/accLp
+  columns.
+- FishingSim.cs: state machine IDLE→CAST→WAIT→BITE→FIGHT→LANDED/ESCAPED/
+  LINE_BROKEN; whip detection (dbgAccRaw ≥ whipThreshold 5 m/s², 1.5 s cooldown,
+  armed in IDLE and in all three end states — a whip in an end state casts again
+  directly); 7-species table (basePull feel + base color with HSV jitter); tension =
+  fish pull × (1 + struggle sine + noise) + sprint bursts, plus reel-speed bonus;
+  0.3 s in the red zone = line break; stamina drain / exhausted-fish fade;
+  fish sprite = Resources/fish/fish_N.png on a billboard quad (root level, follows
+  the fish anchor — never parent it under the non-uniformly scaled capsule);
+  LANDED parabolic leap animation + easeOutBack banner + catch counter panel;
+  bottom-left attitude joystick (live mirror of IMU yaw/pitch); reel progress bar.
+- IMU_Rig.prefab: nested FBX model instance + RodTip; scenes reference
+  across nesting via stripped-Transform chains. **Never export the FBX with an
+  ARMATURE** (skinned-mesh double-rendering bug); flat nodes keep fileIDs stable.
 
-## ⑤ Blender 模型（blender/roller_model.py）
+## ⑤ Blender model (`blender/roller_model.py`)
 
-> **模型重建有专用提示词**：`prompt-rebuild/BLENDER-MODEL.md`（Kimi K3 专用，
-> 配 `assets/model-ref/` 四张参考图）。建模子任务直接用它，规格更细。
+> **There is a dedicated prompt for the model**: `prompt-rebuild/BLENDER-MODEL.md`
+> (English; 中文： BLENDER-MODEL_zh.md), paired with four reference renders under
+> `assets/model-ref/`. Use it for the modeling subtask — it is more detailed.
 
-- 参数化建模 RollerCAN 整机 ×GLOBAL_SCALE 10；材质按件拆细；屏幕 plane UV 满幅；
-  转子侧壁亮黄撞色旋转指示；NURBS 摇柄 join 进 RollerCAN_Rotor 网格；
-  柱体 24 边、端盖 TRIFAN 中心辐射（扇面强制 flat）；FBX 导出剥离骨骼。
-- 预览：`blender --background --python roller_model.py -- --preview`。
+## Collaboration & verification conventions
 
-## 协作与验证约定
+- Firmware verification: `pio run` (install PlatformIO yourself). Unity scripts can
+  be compile-checked without the editor using Mono's csc plus the Unity install's
+  UnityReferenceAssemblies/unity-4.8-api(+Facades) and
+  Managed/UnityEngine/UnityEngine.*.dll references.
+- Scene changes may be made by editing the .unity YAML directly (while the GUI is
+  open); after editing, reopen the scene and do NOT press Ctrl+S.
+- Firmware flashing, Unity Play, and on-device acceptance are performed by the
+  user; visual changes are accepted via screenshots.
+- Read docs/ before touching anything; append a build record to the corresponding
+  plan document after every round of changes.
 
-- 固件验证：`pio run`（PlatformIO 自行安装）；Unity 脚本无编辑器时可用 Mono csc
-  + Unity 安装目录 UnityReferenceAssemblies/unity-4.8-api(+Facades) +
-  Managed/UnityEngine/UnityEngine.*.dll 独立编译验证。
-- 场景改动可直接编辑 .unity YAML（GUI 开着时）；改完重开场景勿 Ctrl+S。
-- 固件烧录、Unity Play、实机验收由用户执行；视觉改动截图验收。
-- 先通读 docs/ 再动手；每轮改动把施工记录追加到对应 plan 文档。
+## Definition of done
 
-## 完成判据
-
-- pio 两固件编译通过；RollerFlasher swift build 通过；Unity csc 编译通过。
-- 烧录钓鱼固件上电即钓鱼 HUD；Unity Play 后拿起 CoreS3 模型姿态跟随、
-  甩竿抛投、中鱼手上被拽、摇柄收线、断线松扭矩、上岸动画+计数。
+- Both firmwares compile with pio; RollerFlasher builds with swift build; Unity
+  scripts compile with csc.
+- Flashed fishing firmware boots straight into the fishing HUD; in Unity Play the
+  model follows the CoreS3 attitude, whip-casting works, a hooked fish pulls against
+  your hand, the crank reels in, a line break releases torque, and landing a fish
+  plays the leap animation and increments the counter.

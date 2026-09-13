@@ -1,84 +1,102 @@
-# RollerCAN 渔轮模型 · Blender 建模提示词（Kimi K3 专用）
+# RollerCAN Reel Model — Blender Modeling Prompt (Kimi K3, English)
 
-> 用法：把本文件全文粘贴给 Kimi K3，工作区里需先有 `assets/model-ref/` 四张参考图。
-> 目标产出：`blender/roller_model.py`（参数化建模脚本）+ `roller_haptic.blend` +
-> 预览渲染图 + 供 Unity 用的 `RollerHaptic.fbx`。
+> 中文版本：[BLENDER-MODEL_zh.md](BLENDER-MODEL_zh.md)
+>
+> How to use: paste this entire file to Kimi K3. The workspace must already contain
+> the four reference renders under `assets/model-ref/`.
+> Deliverables: `blender/roller_model.py` (parametric build script) +
+> `roller_haptic.blend` + a preview render + `RollerHaptic.fbx` for Unity.
 
 ---
 
-## 任务
+## Task
 
-用 Blender（macOS Steam 版 5.2.1，headless：`blender --background --python roller_model.py`）
-参数化重建 RollerCAN 渔轮整机模型。**先调取参考图目验再动手**：
+Rebuild the RollerCAN fishing-reel model parametrically in Blender (macOS Steam
+build 5.2.1, headless: `blender --background --python roller_model.py`).
+**Look at the reference renders BEFORE modeling**:
 
-- `assets/model-ref/preview.png` —— 整机基座+转子初版
-- `assets/model-ref/preview_crank.png` —— 含摇柄的定稿版（最终形态以此为准）
-- `assets/model-ref/axis_check.png` —— 轴向核对参考
-- `assets/model-ref/fbx_reimport_check.png` —— FBX 重导入检查参考
+- `assets/model-ref/preview.png` — base + rotor, first version
+- `assets/model-ref/preview_crank.png` — final form with the crank (THIS is the target)
+- `assets/model-ref/axis_check.png` — axis-check reference
+- `assets/model-ref/fbx_reimport_check.png` — FBX reimport check reference
 
-用 ReadMediaFile 逐张查看，建模时对照。
+View each with ReadMediaFile and model against them.
 
-## 模型规格
+## Model spec
 
-整机按 `GLOBAL_SCALE = 10.0` 放大（真实毫米级太小；缩放走 `data.transform` +
-位置 ×10，**不走 ops**，防父子双重缩放）。整机约 0.54m 宽。
+The whole machine is scaled up by `GLOBAL_SCALE = 10.0` (real millimeter scale is too
+small; apply scale via `data.transform` + positions ×10 — **never via ops**, which
+double-scales parented children). Overall width ≈ 0.54 m.
 
-零部件（真实尺寸×10）：
+Parts (real dimensions ×10):
 
-1. **RollerCAN_Rotor**（电机转子，圆柱，主转子 32 边）：绕 Z 轴旋转（电机轴）。
-   - 侧壁亮黄竖条 `Rotor_Stripe`（近摇臂侧）+ 对侧定位点 `Rotor_RimDot`（16 边），
-     随转子转 = 旋转指示。**注意转子顶面被方形机身完全盖住，指示只能做在侧壁**。
-   - 摇柄四件（CrankHub 轴座 + CrankArm 摇臂 + CrankAxle + CrankGrip 鼓形握把）
-     挂在**转子自由端面（z=0 底面）外侧**，建模后 **join 进 RollerCAN_Rotor 网格**
-     （多材质槽保留）。
-2. **Static_Group**（静态部分）：方形机身（Square）、法兰（Flange）、Hub、
-   外壳（Shell）、面板（Face）、屏幕（Screen = 单面片 plane，UV 0-1 满幅）。
-3. 层级：`Assembly`（空节点根）→ `RollerCAN_Rotor`、`Static_Group`。
+1. **RollerCAN_Rotor** (motor rotor, cylinder, 32 sides): rotates about the Z axis
+   (the motor axis).
+   - Bright-yellow side-wall stripe `Rotor_Stripe` (near the crank side) + opposite
+     rim dot `Rotor_RimDot` (16 sides) — both rotate with the rotor = rotation
+     indicator. **The rotor's top face is fully covered by the square body, so the
+     indicator must live on the side wall.**
+   - The crank set (CrankHub axle seat + CrankArm arm + CrankAxle + CrankGrip barrel
+     grip) hangs off the **rotor's free end face (z=0 bottom face), outside it**;
+     after modeling, **join the four crank parts into the RollerCAN_Rotor mesh**
+     (keep the multiple material slots).
+2. **Static_Group** (static parts): square body (Square), flange (Flange), hub (Hub),
+   shell (Shell), face plate (Face), screen (Screen = single quad plane, UV 0-1
+   full-frame).
+3. Hierarchy: `Assembly` (empty root) → `RollerCAN_Rotor`, `Static_Group`.
 
-材质：按件拆细 11 种独立命名材质
-（Rotor/Square/Flange/Hub/Arm/Axle/Grip/Shell/Face/Screen/AccentYellow）。
+Materials: 11 separately named per-part materials
+(Rotor/Square/Flange/Hub/Arm/Axle/Grip/Shell/Face/Screen/AccentYellow).
 
-## 摇柄建模（关键难点，必须照做）
+## Crank modeling (the hard part — follow exactly)
 
-- CrankArm：**NURBS 路径锥化**——NURBS 曲线做路径，半径从根 9.6mm 锥化到梢 6.4mm，
-  臂长 75mm。NURBS 分辨率 8。
-- CrankGrip：**NURBS 母线手工车削**鼓形握把（30mm）——
-  **Blender 5.2 的 Screw 修改器不再作用于曲线**，车削必须走
-  「NURBS 求值折线 → 手工 lathe」（32 段）。
-- 摇臂两端封口：**确定性手工中心扇**——曲线 `use_fill_caps=False`，转 mesh 后用
-  bmesh 找 2 个边界环，各加中心点 + 三角扇（与柱体 TRIFAN 同式）。
-  **曲线自带封口/poke 实测拓扑不可靠，勿用**。
-- 验收拓扑：摇臂 248 四边面 + 2×8 三角扇，无 ngon 无开放边。
+- CrankArm: **tapered NURBS path** — a NURBS curve as the path, radius tapering from
+  9.6 mm at the root to 6.4 mm at the tip, arm length 75 mm. NURBS resolution 8.
+- CrankGrip: **hand-lathed barrel grip** (30 mm) from a NURBS profile — **the Screw
+  modifier no longer acts on curves in Blender 5.2**, so lathe manually: evaluate the
+  NURBS profile to a polyline → spin it yourself (32 segments).
+- Capping the arm ends: **deterministic manual center fans** — set the curve's
+  `use_fill_caps=False`, convert to mesh, then with bmesh find the 2 boundary loops,
+  add a center vertex to each and build a triangle fan (same style as the TRIFAN
+  cylinder caps). **The curve's built-in caps / poke produce unreliable topology —
+  do not use them.**
+- Acceptance topology: the arm has 248 quad faces + 2×8 triangle fans, no n-gons,
+  no open edges.
 
-## 减面规范（全模型目标 ≈1700 顶点）
+## Poly budget (whole model ≈ 1700 vertices)
 
-- 柱体统一 24 边（主转子 32、轴销/定位点 16）
-- 端盖 `TRIFAN` 中心辐射布线，扇面强制 flat 防明暗发花
-- bevel 段数 2；NURBS 分辨率 8；车削 32 段
+- Cylinders uniformly 24-sided (main rotor 32, pins/dots 16)
+- Caps use `TRIFAN` center-fan topology, fan faces forced flat to prevent shading
+  blotches
+- Bevel segments 2; NURBS resolution 8; lathe 32 segments
 
-## 运动绑定与导出（重要）
+## Rig & export (critical)
 
-- `.blend` 内可保留 Rig：Bone_Root（Static_Group 骨骼父子）+ Bone_Rotor
-  （转子网格骨骼父子，绕 Z 轴）——仅供 Blender 侧动画。
-- **FBX 导出必须剥离骨骼**：导出前把 rotor/grp_st 从骨骼父子解回 Assembly，
-  `object_types` 不含 ARMATURE。骨骼版导入 Unity 会 skinned-mesh 重复渲染
-  （白色大残影）+ 轴向/缩放错乱，绝对勿导出 ARMATURE。
-- FBX 节点名/层级须与上述一致（Unity 场景靠名字稳定引用 fileID）。
+- The .blend may keep a rig: Bone_Root (bone-parents Static_Group) + Bone_Rotor
+  (bone-parents the rotor mesh, about the Z axis) — for Blender-side animation only.
+- **The FBX export must strip the rig**: before exporting, re-parent rotor/grp_st
+  from the bones back to Assembly, and exclude ARMATURE from `object_types`.
+  Importing a rigged FBX into Unity double-renders the skinned mesh (white ghosting)
+  and wrecks the axis/scale — never export ARMATURE.
+- FBX node names/hierarchy must match the spec above (the Unity scene references
+  fileIDs that stay stable only if names do).
 
-## 预览与验收（每步必做，保证成功）
+## Preview & acceptance (do every step — this is what guarantees success)
 
-1. `blender --background --python roller_model.py -- --preview`
-   渲 `blender/preview_crank.png`（Bone_Rotor 摆 35° 验证随动）。
-2. **ReadMediaFile 目验预览图**：对照 `assets/model-ref/preview_crank.png`，
-   整机比例、摇柄形态、黄条位置、屏幕满幅。
-3. 脚本内打印顶点/面数，核对 ≈1700 顶点、摇臂拓扑无 ngon/开放边。
-4. 失败处理：读报错改脚本重跑，直到预览图与参考图形态一致为止——
-   不要交付未目验的模型。
+1. `blender --background --python roller_model.py -- --preview` renders
+   `blender/preview_crank.png` (pose Bone_Rotor at 35° to verify follow-through).
+2. **Inspect the preview with ReadMediaFile**: compare against
+   `assets/model-ref/preview_crank.png` — overall proportions, crank shape, stripe
+   position, full-frame screen UVs.
+3. The script prints vertex/face counts — verify ≈1700 vertices and clean arm
+   topology (no n-gons, no open edges).
+4. On failure: read the error, fix the script, re-run — iterate until the preview
+   matches the reference. **Never deliver a model you have not eyeballed.**
 
-## 已验证的坑（不要再踩）
+## Verified pitfalls (do not step on these again)
 
-- Blender 5.2 Screw 不作用于曲线 → 手工 lathe
-- 曲线自带封口拓扑不可靠 → bmesh 手工中心扇
-- 整体缩放用 data.transform + 位置 ×10，不用 ops（父子双重缩放）
-- 扇面不强制 flat 会明暗发花
-- FBX 带 ARMATURE 进 Unity 直接翻车
+- Blender 5.2 Screw does not act on curves → manual lathe
+- Built-in curve caps are topologically unreliable → bmesh manual center fans
+- Scale via data.transform + positions ×10, never ops (double-scaling children)
+- Fan faces not forced flat → shading blotches
+- FBX with ARMATURE into Unity → instant failure

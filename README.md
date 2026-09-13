@@ -1,54 +1,68 @@
-# M5RollerCANFishing — RollerCAN 旋钮力反馈钓鱼模拟器
+# M5RollerCANFishing — RollerCAN Haptic-Knob Fishing Simulator
 
-M5Stack CoreS3 + RollerCAN（I2C 力反馈电机旋钮）+ Unity 的钓鱼模拟器：
-RollerCAN 旋钮 = 鱼线轮摇柄，CoreS3 IMU = 鱼竿姿态，鱼线张力实时变成电机反向扭矩。
-甩竿抛投（加速度计手势）、像素鱼精灵、水面 shader、渔获计数一应俱全。
+[![Platform](https://img.shields.io/badge/platform-macOS%20only-lightgrey)](README.md)
+[![Unity](https://img.shields.io/badge/Unity-2022.3%2B%20Built--in%20RP-black?logo=unity)](RollerHapticUnity/)
+[![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32--S3%20(CoreS3)-orange?logo=platformio)](firmware-fishing/)
+[![Hardware](https://img.shields.io/badge/M5Stack-CoreS3%20%2B%20RollerCAN-blue)](README.md)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![中文 README](https://img.shields.io/badge/lang-%E4%B8%AD%E6%96%87-red)](README_zh.md)
 
-> **仅适用于 macOS**（Apple Silicon / Intel 均可，仅在 macOS 上开发与验证）：
-> RollerFlasher 烧录器是 macOS SwiftUI app，Blender 建模脚本走 macOS Steam 版 Blender，
-> Unity 侧验证环境为 macOS 上的 Unity 2022.3.62f3c1 / 6000.x。固件（PlatformIO/ESP32-S3）
-> 本身跨平台，但整条工具链没有 Windows/Linux 支持计划。
+A haptic fishing simulator built on **M5Stack CoreS3 + RollerCAN** (I2C force-feedback
+knob motor) + **Unity**: the RollerCAN knob is the fishing-reel handle, the CoreS3 IMU
+is the rod attitude, and line tension becomes counter-torque on the motor — the gameplay
+is in your hand. Whip-cast via accelerometer gesture, pixel-fish sprites on the device
+screen, procedural water shader, catch counter and more.
 
-## 硬件
+> **macOS only** (Apple Silicon / Intel, developed and verified on macOS):
+> the RollerFlasher uploader is a macOS SwiftUI app, the modeling script targets the
+> macOS Steam build of Blender, and the Unity side is verified with
+> Unity 2022.3.62f3c1 / 6000.x on macOS. The firmware itself (PlatformIO / ESP32-S3)
+> is cross-platform, but the toolchain as a whole has no Windows/Linux support planned.
 
-- M5Stack CoreS3（内置 BMI270 IMU）
-- M5Stack RollerCAN（I2C 无刷力反馈旋钮，地址 0x64，Port.A SDA=2/SCL=1）
-- 同一 WiFi 下的 Mac（Unity 端）
+## Hardware
 
-## 仓库结构
+- M5Stack CoreS3 (built-in BMI270 IMU)
+- M5Stack RollerCAN (I2C brushless force-feedback knob, addr 0x64, Port.A SDA=2/SCL=1)
+- A Mac running Unity on the same WiFi network
 
-| 目录 | 内容 |
+## Repository layout
+
+| Path | Contents |
 |---|---|
-| `firmware-fishing/` | **钓鱼专用固件**（干净版：上电即钓鱼 HUD，无本地模式，BtnA=调平） |
-| `firmware/` | 标准力反馈固件（本地 4 模式 DETENTS/SPRING/ENDSTOP/FREE + 串口/UDP EXT） |
-| `RollerFlasher/` | macOS 烧录器（SwiftPM）：WiFi 配置写入、变体选择、串口监视 |
-| `RollerHapticUnity/` | Unity 工程（Built-in 管线）：Fishing 场景、水面 shader、像素鱼 |
-| `package/com.rollerhaptic.fishing/` | Unity 内容的 UPM 打包版（可 Add package from disk 导入新工程） |
-| `blender/` | 渔轮模型参数化脚本 `roller_model.py` + .blend + 预览图 |
-| `tools/` | `png_to_rgb565.py`（鱼图 → 固件 RGB565 C 数组） |
-| `assets/fish/` | 7 张像素鱼 PNG（去背 RGBA，固件与 Unity 共用同款素材） |
-| `docs/` | 全部施工计划与排障记录（含姿态估计/轴映射/协议细节） |
-| `prompt-rebuild/` | **纯提示词重建项目**：一份激活提示词 + 必要素材，从零复刻整个项目 |
+| `firmware-fishing/` | **Dedicated fishing firmware** (clean build: boots straight into the fishing HUD, no local modes, BtnA = level) |
+| `firmware/` | Standard haptic firmware (4 local modes: DETENTS/SPRING/ENDSTOP/FREE + serial/UDP EXT) |
+| `RollerFlasher/` | macOS uploader (SwiftPM): WiFi config injection, firmware-variant picker, serial monitor |
+| `RollerHapticUnity/` | Unity project (Built-in RP): Fishing scene, water shader, pixel fish |
+| `package/com.rollerhaptic.fishing/` | Unity content as a UPM package (import into a new project via *Add package from disk*) |
+| `blender/` | Parametric reel-model script `roller_model.py` + .blend + preview renders |
+| `tools/` | `png_to_rgb565.py` (fish PNG → RGB565 C array for the firmware) |
+| `assets/fish/` | 7 pixel-fish PNGs (background-removed RGBA, shared by firmware and Unity) |
+| `docs/` | All build plans and debugging records (attitude estimation, axis mapping, protocol details) |
+| `prompt-rebuild/` | **Pure-prompt rebuild kit**: activation prompts (EN/ZH) + assets to recreate the whole project from scratch |
 
-## 快速开始
+## Quick start
 
-1. 固件：打开 RollerFlasher（或自行 `pio run -t upload`），默认变体 = 钓鱼模拟器；
-   烧录前 App 会把 WiFi 配置写进 `src/wifi_config.h`（仓库内固件默认值为占位符
-   `YOUR_WIFI_SSID` / `YOUR_WIFI_PASS` / `192.168.1.100`，请按需修改）。
-2. Unity：用 Unity Hub 打开 `RollerHapticUnity/`，打开 `Assets/Scenes/Fishing.unity`，
-   Play。CoreS3 IP 自动发现（OSC 包来源），无需配置。
-3. 操作：甩竿 = 抛投；咬钩后快摇手柄 = 扬竿；FIGHT 中摇柄收线，张力红区 0.3s 断线；
-   鱼上岸后甩竿再来一竿。右上角「IMU 调平」按钮校准姿态零点。
+1. Firmware: open RollerFlasher (or run `pio run -t upload` yourself); the default
+   variant is the fishing firmware. Before building, the app writes your WiFi settings
+   into `src/wifi_config.h` (the repo ships placeholder defaults `YOUR_WIFI_SSID` /
+   `YOUR_WIFI_PASS` / `192.168.1.100` — edit as needed).
+2. Unity: open `RollerHapticUnity/` in Unity Hub, open `Assets/Scenes/Fishing.unity`,
+   press Play. The CoreS3 IP is auto-discovered from incoming OSC packets — zero config.
+3. Controls: whip the device to cast; quick crank on bite = hook-set; crank to reel
+   during FIGHT, watch the tension bar (0.3 s in the red = line breaks); after landing
+   a fish, whip again for the next cast. The "IMU 调平" button (top right) re-zeroes
+   the attitude.
 
-## 通信协议（同一套 ASCII 行，串口 115200 或 UDP :9000）
+## Protocol (one ASCII-line protocol over both serial 115200 and UDP :9000)
 
-- Unity → CoreS3：`TENSION,<0..1000>` / `SETCUR,<n>` / `FISH,<0..6>` / `MODE,EXT` /
+- Unity → CoreS3: `TENSION,<0..1000>` / `SETCUR,<n>` / `FISH,<0..6>` / `MODE,EXT` /
   `MODE,LOCAL` / `LEVEL` / `PING`
-- CoreS3 → Unity（OSC，~100Hz → :8000）：`/rollercan/imu`（欧拉角）、
-  `/rollercan/quat`（四元数，主用）、`/rollercan/motor`（角度/电流）、
-  `/rollercan/acc`（线性加速度幅值，甩竿检测）
+- CoreS3 → Unity (OSC, ~100 Hz → :8000): `/rollercan/imu` (euler, legacy),
+  `/rollercan/quat` (quaternion, primary), `/rollercan/motor` (angle/current),
+  `/rollercan/acc` (linear-acceleration magnitude for whip detection)
 
-## 许可
+## License
 
-本项目代码与素材仅供学习交流。`_backup/` 中的 KriptoFX WaterSystem2 为商业资产，
-不包含在本仓库内。
+MIT (see [LICENSE](LICENSE)). For learning and tinkering. The `_backup/` folder from
+the development workspace (KriptoFX WaterSystem2, a commercial asset) is **not**
+included in this repository.
