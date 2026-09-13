@@ -15,7 +15,7 @@ tags: ["unity", "unity-cli", "pipeline", "gaussian-splatting", "urp", "debugging
 
 - CLI：`~/.unity/bin/unity`，版本 `1.0.0-beta.3`（PATH 由 `~/.unity/env` 注入）。
 - Pipeline 包：`com.unity.pipeline@0.4.0-exp.1`，Demo01 里有**打过补丁的嵌入副本**（`Packages/com.unity.pipeline`）：Mono HttpListener 不认 `http://+:` 前缀，已改 `http://*:`。官方新版发布后应删除副本换回。
-- Demo01（`/Users/jup33q/Demo01`，Unity 6000.5.7f1，URP）：嵌入了 `org.nesnausk.gaussian-splatting`（GaussianComposite shader 打了 NaN 保护补丁）；URP Renderer 已加 `GaussianSplatURPFeature`。
+- Demo01（`~/Demo01`，Unity 6000.5.7f1，URP）：嵌入了 `org.nesnausk.gaussian-splatting`（GaussianComposite shader 打了 NaN 保护补丁）；URP Renderer 已加 `GaussianSplatURPFeature`。
 
 ## 操作流程
 
