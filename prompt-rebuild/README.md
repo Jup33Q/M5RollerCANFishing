@@ -8,7 +8,9 @@
 | 路径 | 作用 |
 |---|---|
 | `ACTIVATE.md` | **一键激活提示词**：全文粘贴给 Kimi Code 即可从零重建整个项目 |
+| `BLENDER-MODEL.md` | **Blender 建模提示词（Kimi K3 专用）**：配合参考图重建渔轮模型 |
 | `assets/fish/` | 7 张像素鱼 PNG（去背 RGBA）——固件精灵与 Unity 素材的唯一来源 |
+| `assets/model-ref/` | 4 张渔轮模型参考图（preview/preview_crank/axis_check/fbx_reimport_check） |
 | `skills/flux-klein/` | 本地文生图 skill（要重新生成/新增鱼图时用） |
 | `skills/unity-cli-pipeline/` | Unity CLI/批处理操作与排障 skill |
 | `docs/` | 5 份施工计划文档（协议、参数、全部踩坑记录——重建前先通读） |

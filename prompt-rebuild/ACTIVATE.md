@@ -117,6 +117,9 @@ ENDSTOP 墙 ±18000、FREE），触摸按钮区 + BtnA 循环切模式，EXT 仅
 
 ## ⑤ Blender 模型（blender/roller_model.py）
 
+> **模型重建有专用提示词**：`prompt-rebuild/BLENDER-MODEL.md`（Kimi K3 专用，
+> 配 `assets/model-ref/` 四张参考图）。建模子任务直接用它，规格更细。
+
 - 参数化建模 RollerCAN 整机 ×GLOBAL_SCALE 10；材质按件拆细；屏幕 plane UV 满幅；
   转子侧壁亮黄撞色旋转指示；NURBS 摇柄 join 进 RollerCAN_Rotor 网格；
   柱体 24 边、端盖 TRIFAN 中心辐射（扇面强制 flat）；FBX 导出剥离骨骼。
