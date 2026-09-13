@@ -1,0 +1,18 @@
+{
+  "name": "com.rollerhaptic.fishing",
+  "version": "0.1.0",
+  "displayName": "RollerHaptic Fishing",
+  "description": "RollerCAN 旋钮力反馈钓鱼模拟器 Unity 内容包（M5Stack CoreS3 + RollerCAN + Unity，仅 macOS 验证）。内含 Fishing/Main 场景、脚本、模型、水面 shader、像素鱼素材。",
+  "unity": "2022.3",
+  "unityRelease": "62f3",
+  "keywords": [
+    "haptic",
+    "fishing",
+    "rollercan",
+    "m5stack",
+    "cores3"
+  ],
+  "author": {
+    "name": "Jup33Q"
+  }
+}

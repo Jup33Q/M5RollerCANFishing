@@ -1,0 +1,14 @@
+{
+    "name": "RollerHaptic.Fishing.Editor",
+    "rootNamespace": "",
+    "references": [
+        "RollerHaptic.Fishing"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "autoReferenced": true,
+    "noEngineReferences": false
+}

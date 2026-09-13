@@ -1,0 +1,29 @@
+# Unity
+Library/
+Temp/
+Logs/
+obj/
+UserSettings/
+MemoryCaptures/
+*.csproj
+*.sln
+*.user
+imu_record_*.csv
+RollerHapticUnity/Assets/Models/TDImportCache/
+
+# PlatformIO
+.pio/
+.venv-pio/
+**/src/wifi_config.h
+**/src/variant_config.h
+
+# Swift
+.build/
+*.xcuserdata
+
+# macOS
+.DS_Store
+._*
+
+# 商业资产备份（不入库）
+_backup/
