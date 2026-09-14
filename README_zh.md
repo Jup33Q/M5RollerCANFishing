@@ -1,7 +1,7 @@
 # M5RollerCANFishing — RollerCAN 旋钮力反馈钓鱼模拟器
 
 [![Platform](https://img.shields.io/badge/platform-%E4%BB%85%20macOS-lightgrey)](README_zh.md)
-[![Unity](https://img.shields.io/badge/Unity-2022.3%2B%20Built--in%20RP-black?logo=unity)](RollerHapticUnity/)
+[![Unity](https://img.shields.io/badge/Unity-6.x%20%7C%202022.3%20LTS%20Built--in%20RP-black?logo=unity)](RollerHapticUnity/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32--S3%20(CoreS3)-orange?logo=platformio)](firmware-fishing/)
 [![Hardware](https://img.shields.io/badge/M5Stack-CoreS3%20%2B%20RollerCAN-blue)](README_zh.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -13,7 +13,8 @@ RollerCAN 旋钮 = 鱼线轮摇柄，CoreS3 IMU = 鱼竿姿态，鱼线张力实
 
 > **仅适用于 macOS**（Apple Silicon / Intel 均可，仅在 macOS 上开发与验证）：
 > RollerFlasher 烧录器是 macOS SwiftUI app，Blender 建模脚本走 macOS Steam 版 Blender，
-> Unity 侧验证环境为 macOS 上的 Unity 2022.3.62f3c1 / 6000.x。固件（PlatformIO/ESP32-S3）
+> Unity 侧目标版本为 **Unity 6.x**（工程版本 6000.5.7f1，Built-in 管线）——脚本同时
+> 通过 **2022.3 LTS** 引用集编译验证，2022.3.x 亦可使用。固件（PlatformIO/ESP32-S3）
 > 本身跨平台，但整条工具链没有 Windows/Linux 支持计划。
 
 ## 硬件

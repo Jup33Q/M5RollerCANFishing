@@ -1,7 +1,7 @@
 # M5RollerCANFishing — RollerCAN Haptic-Knob Fishing Simulator
 
 [![Platform](https://img.shields.io/badge/platform-macOS%20only-lightgrey)](README.md)
-[![Unity](https://img.shields.io/badge/Unity-2022.3%2B%20Built--in%20RP-black?logo=unity)](RollerHapticUnity/)
+[![Unity](https://img.shields.io/badge/Unity-6.x%20%7C%202022.3%20LTS%20Built--in%20RP-black?logo=unity)](RollerHapticUnity/)
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-ESP32--S3%20(CoreS3)-orange?logo=platformio)](firmware-fishing/)
 [![Hardware](https://img.shields.io/badge/M5Stack-CoreS3%20%2B%20RollerCAN-blue)](README.md)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -15,9 +15,11 @@ screen, procedural water shader, catch counter and more.
 
 > **macOS only** (Apple Silicon / Intel, developed and verified on macOS):
 > the RollerFlasher uploader is a macOS SwiftUI app, the modeling script targets the
-> macOS Steam build of Blender, and the Unity side is verified with
-> Unity 2022.3.62f3c1 / 6000.x on macOS. The firmware itself (PlatformIO / ESP32-S3)
-> is cross-platform, but the toolchain as a whole has no Windows/Linux support planned.
+> macOS Steam build of Blender, and the Unity side targets **Unity 6.x**
+> (project version 6000.5.7f1) with the Built-in render pipeline — the scripts also
+> compile cleanly against the **2022.3 LTS** reference assemblies, so 2022.3.x works
+> too. The firmware itself (PlatformIO / ESP32-S3) is cross-platform, but the
+> toolchain as a whole has no Windows/Linux support planned.
 
 ## Hardware
 
